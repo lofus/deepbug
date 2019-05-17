@@ -27,8 +27,8 @@ def deepbug_cnn_model(input_shape, num_output):
     X = BatchNormalization(axis=2, name='bn0')(X)
     X = Activation('relu')(X)
 
-    # MAXPOOL
-    X = MaxPooling2D((2, 4), name='max_pool')(X)
+    # AveragePooling
+    X = AveragePooling2D((2, 2), name='average_pool0')(X)
 
     # FLATTEN X
     X = Flatten()(X)
