@@ -16,16 +16,6 @@ Implementation of DeepBug with Keras framework.
 - `deepbug_cnn_model.py` model implementation with Keras.
 
 Here is a snapshot for the model summary, as printed from log
-
-Loading dataset ...
-X_train.shape (9454, 50, 200, 1)
-y_train.shape (9454, 781)
-X_test.shape (1000, 50, 200, 1)
-y_test.shape (1000, 781)
-classes: 781
-deepbug_model_cnn start..
-input_shape: (50, 200, 1)
-num_output: 781
 model summary:
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -34,21 +24,39 @@ input_1 (InputLayer)         (None, 50, 200, 1)        0
 _________________________________________________________________
 zero_padding2d_1 (ZeroPaddin (None, 56, 206, 1)        0         
 _________________________________________________________________
-conv0 (Conv2D)               (None, 25, 100, 16)       800       
+bn0 (BatchNormalization)     (None, 56, 206, 1)        824       
 _________________________________________________________________
-bn0 (BatchNormalization)     (None, 25, 100, 16)       400       
+conv0 (Conv2D)               (None, 52, 202, 16)       416       
 _________________________________________________________________
-activation_1 (Activation)    (None, 25, 100, 16)       0         
+activation_1 (Activation)    (None, 52, 202, 16)       0         
 _________________________________________________________________
-average_pool0 (AveragePoolin (None, 12, 50, 16)        0         
+max_pool0 (MaxPooling2D)     (None, 26, 101, 16)       0         
 _________________________________________________________________
-flatten_1 (Flatten)          (None, 9600)              0         
+conv1 (Conv2D)               (None, 24, 99, 32)        4640      
 _________________________________________________________________
-fc (Dense)                   (None, 781)               7498381   
+activation_2 (Activation)    (None, 24, 99, 32)        0         
+_________________________________________________________________
+max_pool1 (MaxPooling2D)     (None, 12, 49, 32)        0         
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 12, 49, 32)        0         
+_________________________________________________________________
+conv2 (Conv2D)               (None, 10, 47, 64)        18496     
+_________________________________________________________________
+activation_3 (Activation)    (None, 10, 47, 64)        0         
+_________________________________________________________________
+max_pool2 (MaxPooling2D)     (None, 5, 23, 64)         0         
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 5, 23, 64)         0         
+_________________________________________________________________
+flatten_1 (Flatten)          (None, 7360)              0         
+_________________________________________________________________
+fc0 (Dense)                  (None, 2000)              14722000  
+_________________________________________________________________
+softmax (Dense)              (None, 781)               1562781   
 =================================================================
-Total params: 7,499,581
-Trainable params: 7,499,381
-Non-trainable params: 200
+Total params: 16,309,157
+Trainable params: 16,308,745
+Non-trainable params: 412
 
 
 ## Datasets
