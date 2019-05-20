@@ -1,12 +1,8 @@
 import numpy as np
-#from preprocess import preprocess_all_datasets
 from dataset import chronological_cv
 from deepbug_cnn_model import deepbug_cnn_model
 from keras.callbacks import EarlyStopping
-
-#Preprocess datasets, this need to be run just once.
-#preprocess_all_datasets()
-
+from plot_loss import PlotLosses
 
 
 def run_deepbug_cnn_chronological_cv(
@@ -59,42 +55,67 @@ def run_deepbug_cnn_chronological_cv(
     slice_results = {}
     top_rank_k_accuracies = []
     for i, (X_train, y_train, X_test, y_test, classes) in enumerate(slices):
-        #slice again the training and test samples.
-        #X_train = X_train[0:10000]
-        #y_train = y_train[0:10000]
-        X_test = X_test[0:1000]
-        y_test = y_test[0:1000]
-
-        #reshape
-        X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], X_train.shape[2], -1))
-        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], X_test.shape[2], -1))
-
+        ##X_train = X_train[:2000]
+        ##y_train = y_train[:2000]
         print("X_train.shape", X_train.shape)
         print("y_train.shape", y_train.shape)
         print("X_test.shape", X_test.shape)
         print("y_test.shape", y_test.shape)
         print("classes:", len(classes))
 
+        print("After merge")
+        M_X = np.zeros((X_train.shape[0]+X_test.shape[0], X_train.shape[1], X_train.shape[2]))
+        M_y = np.zeros((y_train.shape[0]+y_test.shape[0], y_train.shape[1]))
+        M_X[:X_train.shape[0]] = X_train
+        M_X[X_train.shape[0]:] = X_test
+        M_y[:y_train.shape[0]] = y_train
+        M_y[y_train.shape[0]:] = y_test
+        X_train = M_X
+        y_train = M_y
+
+
+        #reshape
+        X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], X_train.shape[2], -1))
+        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], X_test.shape[2], -1))
+        print("X_train.shape", X_train.shape)
+        print("y_train.shape", y_train.shape)
+        print("validation_split = 0.1")
+
         #create the model
         model = deepbug_cnn_model(
             (max_sentence_len, embed_size_word2vec, 1), len(classes)
         )
 
-        #DEBUG
-        print("model summary:")
-        model.summary()
         #plot_model(model, to_file='deepbug_cnn_model.png')
 
         # Train the deep learning model and test using the classifier
-        early_stopping = EarlyStopping(monitor="val_loss", patience=3)
+        # fit(x=None, y=None, batch_size=None, epochs=1, verbose=1, callbacks=None, validation_split=0.0, validation_data=None, shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None, validation_freq=1)
+        early_stopping = EarlyStopping(monitor="val_loss", patience=18)
+        plot_losses = PlotLosses()
+        """
         hist = model.fit(
             X_train,
             y_train,
             validation_data=(X_test, y_test),
             batch_size=batch_size,
             epochs=500,
-            callbacks=[early_stopping],
         )
+        """
+        print("model summary:")
+        model.summary()
+
+        hist = model.fit(
+            X_train,
+            y_train,
+            validation_split=0.1,
+            batch_size=batch_size,
+            epochs=100,
+            callbacks=[plot_losses],
+        )
+
+        #DEBUG
+        print("model summary:")
+        model.summary()
 
         prediction = model.predict(X_test)
         accuracy = topk_accuracy(prediction, y_test, classes, rank_k=rank_k)
@@ -133,3 +154,4 @@ def topk_accuracy(prediction, y_test, classes, rank_k=10):
 gc_result_dict = run_deepbug_cnn_chronological_cv(
     dataset_name="google_chromium", min_train_samples_per_class=20, num_cv=10
 )
+
