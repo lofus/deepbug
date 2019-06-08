@@ -18,7 +18,7 @@ stream of the two paths are aggregated as the final output as a classifier.
  6. run train_and_evaluate_deepbug.py to train and validate DeepBug.
 
 ## Project files
-- `dataset.py` load dataset, reading and slicing methods for cross validation.
+- `build_dataset.py` load dataset, reading and slicing methods for cross validation.
 - `deepbug_models.py` models implementation with Keras.
 - `train_and_evaluate_deepbug.py` run this script to train and evaluate the model
 
