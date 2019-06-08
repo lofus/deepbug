@@ -1,5 +1,5 @@
 import numpy as np
-from dataset import chronological_cv
+from build_dataset import chronological_cv
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from plot_loss import PlotLosses
 from deepbug_models import *
