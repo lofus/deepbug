@@ -2,8 +2,7 @@ import numpy as np
 from gensim.models import Word2Vec
 from keras.utils import np_utils
 
-np.random.seed(1337)
-
+np.random.seed(1845)
 
 def filter_with_vocabulary(sentences, labels, vocabulary, min_sentence_length=15):
     """Remove all the words that is not present in the vocabulary"""
@@ -140,3 +139,4 @@ def chronological_cv(
         y_test = np_utils.to_categorical(Y_test, len(unique_train_label))
 
         yield X_train, y_train, X_test, y_test, classes
+

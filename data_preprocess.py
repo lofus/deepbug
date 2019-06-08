@@ -5,7 +5,6 @@ from gensim.models import Word2Vec
 
 np.random.seed(1852)
 
-
 def clean_word_list(item):
     # 1. Remove \r
     current_title = item["issue_title"].replace("\r", " ")
@@ -119,8 +118,9 @@ def preprocess_dataset(dataset_name):
 
 
 def preprocess_all_datasets():
+    #preprocess_dataset("google_chromium")
+    #preprocess_dataset("mozilla_firefox")
     preprocess_dataset("jira")
-
 
 def read_json_and_clean(filename):
     # The bugs are loaded from the JSON file and the preprocessing is performed
@@ -138,32 +138,5 @@ def read_json_and_clean(filename):
     return all_data
 
 
-def wordvec_all_datasets_merged():
-    print("Preprocessing all datasets merged: Word2Vec model")
-    # The JSON file location containing the data for deep learning model training
-    open_bugs_json_gc = "./data/{0}/deep_data.json".format("google_chromium")
-    open_bugs_json_mc = "./data/{0}/deep_data.json".format("mozilla_core")
-    open_bugs_json_mf = "./data/{0}/deep_data.json".format("mozilla_firefox")
+preprocess_all_datasets()
 
-    # The bugs are loaded from the JSON file and the preprocessing is performed
-    all_data_gc = read_json_and_clean(open_bugs_json_gc)
-    all_data_mc = read_json_and_clean(open_bugs_json_mc)
-    all_data_mf = read_json_and_clean(open_bugs_json_mf)
-
-    all_data_merged = all_data_gc + all_data_mc + all_data_mf
-
-    # Word2vec parameters
-    min_word_frequency_word2vec = 5
-    embed_size_word2vec = 200
-    context_window_word2vec = 5
-
-    # A vocabulary is constructed and the word2vec model is learned using the preprocessed data. The word2vec model provides a semantic word representation for every word in the vocabulary.
-    wordvec_model = Word2Vec(
-        all_data_merged,
-        min_count=min_word_frequency_word2vec,
-        size=embed_size_word2vec,
-        window=context_window_word2vec,
-    )
-
-    # Save word2vec model to use in the model again and again
-    wordvec_model.save("./data/merged/word2vec.model")
