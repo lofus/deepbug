@@ -4,7 +4,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from plot_loss import PlotLosses
 from deepbug_models import *
 
-def run_deepbug_with_cv(
+def train_separate_path(
         dataset_name,
         min_train_samples_per_class,
         num_cv,
@@ -119,7 +119,7 @@ def topk_accuracy(prediction, y_test, classes, rank_k=10):
     return accuracy
 
 
-gc_result_dict = run_deepbug_with_cv(
+gc_result_dict = train_separate_path(
     dataset_name="jira", min_train_samples_per_class=20, num_cv=10
 )
 
