@@ -3,13 +3,30 @@ from keras.layers import Input, Dense, Activation, ZeroPadding1D, BatchNormaliza
 from keras.layers import AveragePooling2D, ZeroPadding2D, MaxPooling2D, GlobalMaxPooling2D, GlobalAveragePooling2D
 from keras import regularizers
 from keras.models import Model, Sequential
+from keras.layers import (
+    Dense,
+    Dropout,
+    Embedding,
+    LSTM,
+    GRU,
+    BatchNormalization,
+    Flatten,
+    Input,
+    RepeatVector,
+    Permute,
+    multiply,
+    Lambda,
+    Activation,
+)
+from keras.layers.merge import concatenate
 from keras.optimizers import Adam
+from keras import backend as K
 
 def deepbug_cnn_model(input_shape, num_output):
     """
     Implementation of the Deepbug model (train for cnn path) with Keras FW.
     Arguments:
-    input_shape -- shape of the images of the dataset
+    input_shape -- shape of the matrices of the dataset
     num_output -- number of unique labels in the data
     Returns:
     model -- a Model() instance
@@ -63,7 +80,7 @@ def deepbug_alexnet_model(input_shape, num_output):
     """
     Prototype for Deepbug model (train for cnn path) with Keras FW.
     Arguments:
-    input_shape -- shape of the images of the dataset
+    input_shape -- shape of the matrices of the dataset
     num_output -- number of unique labels in the data
     Returns:
     model -- a Model() instance
@@ -140,7 +157,7 @@ def deepbug_rnn_model(input_shape, num_output, num_rnn_unit=512, num_dense_unit=
     """
     Implementation of the Deepbug model (rnn path) with Keras FW.
     Arguments:
-    input_shape -- shape of the images of the dataset
+    input_shape -- shape of the matrices of the dataset
     num_output -- number of unique labels in the data
     Returns:
     model -- a Model() instance
@@ -187,5 +204,94 @@ def deepbug_rnn_model(input_shape, num_output, num_rnn_unit=512, num_dense_unit=
     output = Dense(num_output, activation="softmax")(after_dp)
     model = Model(input=input_1, output=output)
     model.compile(loss="categorical_crossentropy", optimizer=Adam(lr=1e-4), metrics=["accuracy"])
+
+    return model
+
+
+def deepbug_model(cnn_input_shape, rnn_input_shape, num_output,
+                  num_rnn_unit=512, num_dense_unit=1000):
+    """
+    Implementation of the Deepbug model (a hybrid of cnn and rnn in parallel) with Keras FW.
+    Arguments:
+    cnn_input_shape -- shape of the input for cnn path
+    rnn_input_shape -- shape of the input for rnn path
+    num_output -- number of unique labels in the data
+    Returns:
+    model -- a Model() instance
+    """
+    cnn_input = Input(cnn_input_shape)
+    rnn_input = Input(rnn_input_shape)
+
+    #CNN Path
+    # Zero-Padding
+    X = ZeroPadding2D((3, 3))(cnn_input)
+
+    # 1st Convolutional Layer
+    # CONV -> BN -> RELU -> AveragePooling
+    X = BatchNormalization(axis=2, name='bn0')(X)
+    X = Conv2D(16, (5, 5),  strides=(1, 1), name='conv0')(X)
+    X = Activation('relu')(X)
+    X = MaxPooling2D((2, 2), name='max_pool0')(X)
+    X = Dropout(0.4)(X)
+
+    # 2nd Convolutional Layer
+    X = Conv2D(32, (3, 3), strides=(1, 1), name='conv1')(X)
+    X = Activation('relu')(X)
+    X = MaxPooling2D((2, 2), name='max_pool1')(X)
+    X = Dropout(0.4)(X)
+
+    # 3rd Convolutional Layer
+    X = Conv2D(64, (3, 3), strides=(1, 1), name='conv2')(X)
+    X = Activation('relu')(X)
+    X = AveragePooling2D((2, 2), name='average_pool2')(X)
+    X = Dropout(0.4)(X)
+
+    # FLATTEN X
+    X = Flatten()(X)
+    cnn_flow = Dense(1000, activation='relu', name='fc0')(X)
+
+    #RNN Path
+    forwards_1 = GRU(num_rnn_unit, return_sequences=True, dropout=0.2)(rnn_input)
+    attention_1 = Dense(1, activation="tanh")(forwards_1)
+    attention_1 = Flatten()(attention_1)  # squeeze (None,50,1)->(None,50)
+    attention_1 = Activation("softmax")(attention_1)
+    attention_1 = RepeatVector(num_rnn_unit)(attention_1)
+    attention_1 = Permute([2, 1])(attention_1)
+    attention_1 = multiply([forwards_1, attention_1])
+    attention_1 = Lambda(lambda xin: K.sum(xin, axis=1), output_shape=(num_rnn_unit,))(
+        attention_1
+    )
+
+    last_out_1 = Lambda(lambda xin: xin[:, -1, :])(forwards_1)
+    sent_representation_1 = concatenate([last_out_1, attention_1])
+
+    after_dp_forward_5 = BatchNormalization()(sent_representation_1)
+    backwards_1 = GRU(
+        num_rnn_unit, return_sequences=True, dropout=0.2, go_backwards=True
+    )(rnn_input)
+
+    attention_2 = Dense(1, activation="tanh")(backwards_1)
+    attention_2 = Flatten()(attention_2)
+    attention_2 = Activation("softmax")(attention_2)
+    attention_2 = RepeatVector(num_rnn_unit)(attention_2)
+    attention_2 = Permute([2, 1])(attention_2)
+    attention_2 = multiply([backwards_1, attention_2])
+    attention_2 = Lambda(lambda xin: K.sum(xin, axis=1), output_shape=(num_rnn_unit,))(
+        attention_2
+    )
+    last_out_2 = Lambda(lambda xin: xin[:, -1, :])(backwards_1)
+    sent_representation_2 = concatenate([last_out_2, attention_2])
+    after_dp_backward_5 = BatchNormalization()(sent_representation_2)
+    concated = concatenate([after_dp_forward_5, after_dp_backward_5])
+    rnn_flow = Dense(num_dense_unit, activation="relu")(concated)
+
+    # merge for and generate the final softmax output
+    deepbug_output = Dense(num_output, activation='softmax', name='fc1')(cnn_flow + rnn_flow)
+
+    model = Model(inputs=[cnn_input, rnn_input], outputs=deepbug_output, name='DeepBugCNNModel')
+
+    model.compile(
+        loss="categorical_crossentropy", optimizer=Adam(lr=1e-4), metrics=["accuracy"]
+    )
 
     return model
