@@ -1,5 +1,5 @@
 import numpy as np
-from dataset import deepbug_chronological_cv
+from build_dataset import chronological_cv
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from plot_loss import PlotLosses
 from deepbug_models import *
@@ -33,21 +33,40 @@ def run_deepbug_with_cv(
     rank_k = 10
     batch_size = 1024
 
-    # CNN channels (log stack layers)
-    cnn_channels = 5
     print("Loading dataset ...")
 
-    slices = deepbug_chronological_cv(
+    slices = chronological_cv(
         dataset_name, min_train_samples_per_class, num_cv, merged_wordvec_model
     )
 
     slice_results = {}
     top_rank_k_accuracies = []
-    for i, (CNN_train, RNN_train, y_train, CNN_test, RNN_test, y_test, classes) in enumerate(slices):
+    for i, (X_train, y_train, X_test, y_test, classes) in enumerate(slices):
+        print("X_train.shape", X_train.shape)
+        print("y_train.shape", y_train.shape)
+        print("X_test.shape", X_test.shape)
+        print("y_test.shape", y_test.shape)
+        print("classes:", len(classes))
+
+        # Need merge?
+        M_X = np.zeros((X_train.shape[0]+X_test.shape[0], X_train.shape[1], X_train.shape[2]))
+        M_y = np.zeros((y_train.shape[0]+y_test.shape[0], y_train.shape[1]))
+        M_X[:X_train.shape[0]] = X_train
+        M_X[X_train.shape[0]:] = X_test
+        M_y[:y_train.shape[0]] = y_train
+        M_y[y_train.shape[0]:] = y_test
+        X_train = M_X
+        y_train = M_y
+
+        #reshape
+        X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], X_train.shape[2], -1))
+        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], X_test.shape[2], -1))
+        print("X_train.shape", X_train.shape)
+        print("y_train.shape", y_train.shape)
 
         #create the model
-        model = deepbug_model(
-            (max_sentence_len, embed_size_word2vec, cnn_channels), (max_sentence_len, embed_size_word2vec), len(classes)
+        model = deepbug_cnn_model(
+            (max_sentence_len, embed_size_word2vec, 1), len(classes)
         )
 
         # Train the deep learning model and test using the classifier
@@ -57,16 +76,16 @@ def run_deepbug_with_cv(
 
         print("model summary:")
         model.summary()
-
         hist = model.fit(
-            [CNN_train, RNN_train],
+            X_train,
             y_train,
+            validation_split=0.1,
             batch_size=batch_size,
-            epochs=300,
+            epochs=250,
             callbacks=[early_stopping, plot_losses]
         )
 
-        prediction = model.predict([CNN_test, RNN_test])
+        prediction = model.predict(X_test)
         accuracy = topk_accuracy(prediction, y_test, classes, rank_k=rank_k)
         print("CV{}, top1 - ... - top{} accuracy: ".format(i + 1, rank_k), accuracy)
 
